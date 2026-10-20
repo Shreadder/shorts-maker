@@ -3,12 +3,12 @@ import streamlit as st
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
-from video_utils import fetch_fast_transcript, download_clip_range_only, process_short_video, add_karaoke_captions_to_video
+import video_utils as vu
 
 st.set_page_config(page_title="AI Shorts Generator", layout="centered", page_icon="⚡")
 
 st.title("⚡ صانع الشورتس الذكي بالذكاء الاصطناعي")
-st.write("ضع رابط أي مقطع يوتيوب، وسيقوم النظام فوراً بتحليل المحتوى واختيار أفضل لقطة وإنتاج شورت عمودي مع كابشنز كاريوكي.")
+st.write("ضع رابط أي مقطع يوتيوب لإنتاج شورت عمودي مع كابشنز كاريوكي.")
 
 
 class ViralMoment(BaseModel):
@@ -53,13 +53,14 @@ if st.button("🚀 توليد مقطع الشورتس الآن", type="primary")
         status = st.status("بدء المعالجة الفائقة...", expanded=True)
         try:
             status.write("⚡ 1. فحص الحوار واستخراج التوقيتات...")
-            transcript_segments = fetch_fast_transcript(video_url)
+            transcript_segments = vu.fetch_fast_transcript(video_url)
 
             status.write("🧠 2. الذكاء الاصطناعي يحلل اللحظة الأكثر انتشاراً...")
             viral_data = analyze_transcript(transcript_segments)
 
-            status.write(f"📥 3. تحميل الـ {int(viral_data.end_time - viral_data.start_time)} ثانية المطلوبة فقط مباشرة...")
-            raw_clip = download_clip_range_only(
+            clip_duration = int(viral_data.end_time - viral_data.start_time)
+            status.write(f"📥 3. تحميل الـ {clip_duration} ثانية المطلوبة فقط مباشرة...")
+            raw_clip = vu.download_clip_range_only(
                 video_url,
                 viral_data.start_time,
                 viral_data.end_time,
@@ -67,10 +68,10 @@ if st.button("🚀 توليد مقطع الشورتس الآن", type="primary")
             )
 
             status.write("✂️ 4. ضبط أبعاد الفيديو عمودياً 9:16...")
-            cropped_file = process_short_video(raw_clip, "temp_cropped.mp4")
+            cropped_file = vu.process_short_video(raw_clip, "temp_cropped.mp4")
 
             status.write("🎨 5. دمج كابشنز الكاريوكي المتزامنة...")
-            final_file = add_karaoke_captions_to_video(
+            final_file = vu.add_karaoke_captions_to_video(
                 video_path=cropped_file,
                 output_path="final_karaoke_short.mp4",
                 max_words_per_line=4,
