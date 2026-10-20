@@ -42,11 +42,12 @@ def fetch_fast_transcript(url: str) -> list:
         "overwrites": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "web"]
+                "player_client": ["ios", "android"],
+                "player_skip": ["webpage", "configs"]
             }
         },
         "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "com.google.ios.youtube/19.29.1 (iPhone14,3; U; CPU iOS 17_5_1 like Mac OS X; en_US)"
         },
         "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
     }
@@ -78,18 +79,19 @@ def download_clip_range_only(url: str, start_time: float, end_time: float, outpu
             pass
 
     ydl_opts = {
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        "format": "mp4/best[ext=mp4]/best",
         "outtmpl": output_path,
         "overwrites": True,
         "download_ranges": yt_dlp.utils.download_range_func(None, [(start_time, end_time)]),
         "force_keyframes_at_cuts": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "web"]
+                "player_client": ["ios", "android"],
+                "player_skip": ["webpage", "configs"]
             }
         },
         "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "com.google.ios.youtube/19.29.1 (iPhone14,3; U; CPU iOS 17_5_1 like Mac OS X; en_US)"
         }
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
