@@ -43,7 +43,7 @@ def fetch_fast_transcript(url: str) -> list:
         "format": "ba/b/best",
         "outtmpl": "temp_fast_audio.%(ext)s",
         "overwrites": True,
-        "js_runtimes": ["node"],
+        "js_runtimes": {"node": {}},
         "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
     }
     if os.path.exists(COOKIE_FILE):
@@ -80,7 +80,7 @@ def download_clip_range_only(url: str, start_time: float, end_time: float, outpu
         "format": "bestvideo+bestaudio/best",
         "outtmpl": output_path,
         "overwrites": True,
-        "js_runtimes": ["node"],
+        "js_runtimes": {"node": {}},
         "download_ranges": yt_dlp.utils.download_range_func(None, [(start_time, end_time)]),
         "force_keyframes_at_cuts": True,
     }
