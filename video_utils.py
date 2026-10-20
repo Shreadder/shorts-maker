@@ -7,6 +7,9 @@ import yt_dlp
 from moviepy import VideoFileClip, ImageClip, CompositeVideoClip
 from youtube_transcript_api import YouTubeTranscriptApi
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+COOKIE_FILE = os.path.join(BASE_DIR, "cookies.txt")
+
 
 def extract_youtube_id(url: str) -> str:
     pattern = r"(?:v=|\/|youtu\.be\/)([0-9A-Za-z_-]{11})"
@@ -40,17 +43,11 @@ def fetch_fast_transcript(url: str) -> list:
         "format": "ba/ba*",
         "outtmpl": "temp_fast_audio.%(ext)s",
         "overwrites": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["ios", "android"],
-                "player_skip": ["webpage", "configs"]
-            }
-        },
-        "http_headers": {
-            "User-Agent": "com.google.ios.youtube/19.29.1 (iPhone14,3; U; CPU iOS 17_5_1 like Mac OS X; en_US)"
-        },
         "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
     }
+    if os.path.exists(COOKIE_FILE):
+        ydl_opts["cookiefile"] = COOKIE_FILE
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
@@ -84,16 +81,10 @@ def download_clip_range_only(url: str, start_time: float, end_time: float, outpu
         "overwrites": True,
         "download_ranges": yt_dlp.utils.download_range_func(None, [(start_time, end_time)]),
         "force_keyframes_at_cuts": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["ios", "android"],
-                "player_skip": ["webpage", "configs"]
-            }
-        },
-        "http_headers": {
-            "User-Agent": "com.google.ios.youtube/19.29.1 (iPhone14,3; U; CPU iOS 17_5_1 like Mac OS X; en_US)"
-        }
     }
+    if os.path.exists(COOKIE_FILE):
+        ydl_opts["cookiefile"] = COOKIE_FILE
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
