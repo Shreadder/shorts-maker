@@ -9,17 +9,13 @@ from youtube_transcript_api import YouTubeTranscriptApi
 
 
 def extract_youtube_id(url: str) -> str:
-    """استخراج معرّف الفيديو من رابط يوتيوب."""
     pattern = r"(?:v=|\/|youtu\.be\/)([0-9A-Za-z_-]{11})"
     match = re.search(pattern, url)
     return match.group(1) if match else url
 
 
 def fetch_fast_transcript(url: str) -> list:
-    """جلب الترجمة المباشرة أو تفريغ الصوت سحابياً عبر faster-whisper مع تخطي حظر 403."""
     video_id = extract_youtube_id(url)
-
-    # 1. فحص توفر تفريغ يوتيوب التلقائي المباشر
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=["en", "ar"])
         segments = []
@@ -33,7 +29,6 @@ def fetch_fast_transcript(url: str) -> list:
     except Exception:
         pass
 
-    # 2. تحميل الصوت فقط في حال عدم توفر ترجمة مع تخطي حظر السيرفرات السحابية
     audio_path = "temp_fast_audio.mp3"
     if os.path.exists(audio_path):
         try:
@@ -70,19 +65,12 @@ def fetch_fast_transcript(url: str) -> list:
         })
 
     if not segments:
-        raise RuntimeError("لم يتم العثور على حوار منطوق لتحليله.")
+        raise RuntimeError("No dialogue found in video")
 
     return segments
 
 
-def download_clip_range_only(
-    url: str,
-    start_time: float,
-    end_time: float,
-    output_path: str = "temp_short_raw.mp4"
-) -> str:
-    """تحميل الثواني المحددة فقط من يوتيوب مباشرة مع تجاوز حظر 403 السحابي."""
-    print(f"تحميل اللحظة المحددة فقط ({start_time:.1f}s إلى {end_time:.1f}s)...")
+def download_clip_range_only(url: str, start_time: float, end_time: float, output_path: str = "temp_short_raw.mp4") -> str:
     if os.path.exists(output_path):
         try:
             os.remove(output_path)
@@ -111,7 +99,6 @@ def download_clip_range_only(
 
 
 def crop_to_vertical_9_16(clip: VideoFileClip) -> VideoFileClip:
-    """قص وتوسيط الفيديو ليناسب شاشات الجوال 9:16."""
     orig_w, orig_h = clip.size
     target_aspect_ratio = 9 / 16
     current_aspect_ratio = orig_w / orig_h
@@ -139,7 +126,6 @@ def crop_to_vertical_9_16(clip: VideoFileClip) -> VideoFileClip:
 
 
 def process_short_video(raw_clip_path: str, output_path: str = "temp_cropped.mp4") -> str:
-    """تحويل أبعاد المقطع المقتطع إلى 9:16 بنمط معالجة فائق السرعة."""
     with VideoFileClip(raw_clip_path) as clip:
         processed_clip = crop_to_vertical_9_16(clip)
         processed_clip.write_videofile(
@@ -153,15 +139,117 @@ def process_short_video(raw_clip_path: str, output_path: str = "temp_cropped.mp4
     return output_path
 
 
-def generate_karaoke_frame(
-    words_list: list,
-    active_idx: int,
-    frame_width: int,
-    font_path: str = "arialbd.ttf",
-    font_size: int = 55,
-    normal_color: str = "#FFFFFF",
-    active_color: str = "#FFE600",
-    stroke_color: str = "#000000",
-    stroke_width: int = 5
-) -> np.ndarray:
-    """توليد الإطار الرسومي لك
+def generate_karaoke_frame(words_list: list, active_idx: int, frame_width: int, font_path: str = "arialbd.ttf", font_size: int = 55, normal_color: str = "#FFFFFF", active_color: str = "#FFE600", stroke_color: str = "#000000", stroke_width: int = 5) -> np.ndarray:
+    try:
+        font = ImageFont.truetype(font_path, font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    space_width = font.getbbox(" ")[2] - font.getbbox(" ")[0]
+    total_line_width = 0
+    word_boxes = []
+
+    for w in words_list:
+        bbox = font.getbbox(w)
+        w_width = bbox[2] - bbox[0]
+        w_height = bbox[3] - bbox[1]
+        word_boxes.append((w_width, w_height))
+        total_line_width += w_width + space_width
+
+    total_line_width -= space_width
+    max_height = max(b[1] for b in word_boxes) + (stroke_width * 4)
+
+    img = Image.new("RGBA", (frame_width, max_height + 30), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    current_x = (frame_width - total_line_width) / 2
+    current_y = 10
+
+    for i, word in enumerate(words_list):
+        fill_color = active_color if i == active_idx else normal_color
+        draw.text(
+            (current_x, current_y),
+            word,
+            font=font,
+            fill=fill_color,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_color
+        )
+        current_x += word_boxes[i][0] + space_width
+
+    return np.array(img)
+
+
+def add_karaoke_captions_to_video(video_path: str, output_path: str = "final_karaoke_short.mp4", max_words_per_line: int = 4, active_color: str = "#FFE500", normal_color: str = "#FFFFFF", font_size: int = 55) -> str:
+    model = WhisperModel("base", device="cpu", compute_type="int8")
+    segments_generator, _ = model.transcribe(video_path, word_timestamps=True)
+
+    all_words = []
+    for segment in segments_generator:
+        if segment.words:
+            for w in segment.words:
+                clean_word = w.word.strip().upper()
+                if clean_word:
+                    all_words.append({
+                        "word": clean_word,
+                        "start": w.start,
+                        "end": w.end
+                    })
+
+    if not all_words:
+        return video_path
+
+    groups = [
+        all_words[i:i + max_words_per_line]
+        for i in range(0, len(all_words), max_words_per_line)
+    ]
+
+    subtitle_clips = []
+
+    with VideoFileClip(video_path) as video:
+        video_w, video_h = video.size
+        y_position = int(video_h * 0.72)
+
+        for group in groups:
+            group_words_text = [item["word"] for item in group]
+
+            for idx, active_item in enumerate(group):
+                start_t = active_item["start"]
+                if idx + 1 < len(group):
+                    end_t = group[idx + 1]["start"]
+                else:
+                    end_t = active_item["end"]
+
+                duration = max(end_t - start_t, 0.15)
+
+                frame_img = generate_karaoke_frame(
+                    words_list=group_words_text,
+                    active_idx=idx,
+                    frame_width=video_w,
+                    font_size=font_size,
+                    normal_color=normal_color,
+                    active_color=active_color,
+                    stroke_color="#000000",
+                    stroke_width=5
+                )
+
+                clip = (
+                    ImageClip(frame_img)
+                    .with_start(start_t)
+                    .with_duration(duration)
+                    .with_position(("center", y_position))
+                )
+                subtitle_clips.append(clip)
+
+        final_video = CompositeVideoClip([video, *subtitle_clips])
+
+        final_video.write_videofile(
+            output_path,
+            codec="libx264",
+            audio_codec="aac",
+            fps=30,
+            preset="ultrafast",
+            threads=4
+        )
+
+    return output_path
