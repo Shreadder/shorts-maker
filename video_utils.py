@@ -40,7 +40,7 @@ def fetch_fast_transcript(url: str) -> list:
             pass
 
     ydl_opts = {
-        "format": "ba/ba*",
+        "format": "ba/b/best",
         "outtmpl": "temp_fast_audio.%(ext)s",
         "overwrites": True,
         "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
@@ -76,7 +76,7 @@ def download_clip_range_only(url: str, start_time: float, end_time: float, outpu
             pass
 
     ydl_opts = {
-        "format": "mp4/best[ext=mp4]/best",
+        "format": "bestvideo+bestaudio/best",
         "outtmpl": output_path,
         "overwrites": True,
         "download_ranges": yt_dlp.utils.download_range_func(None, [(start_time, end_time)]),
