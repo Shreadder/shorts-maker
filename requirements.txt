@@ -7,3 +7,4 @@ moviepy
 youtube-transcript-api
 Pillow
 numpy
+yt-dlp-ejs
