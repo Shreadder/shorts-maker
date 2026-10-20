@@ -43,11 +43,13 @@ def fetch_fast_transcript(url: str) -> list:
         "format": "ba/b/best",
         "outtmpl": "temp_fast_audio.%(ext)s",
         "overwrites": True,
-        "js_runtimes": {"node": {}},
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android_music", "web_embedded"]
+            }
+        },
         "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
     }
-    if os.path.exists(COOKIE_FILE):
-        ydl_opts["cookiefile"] = COOKIE_FILE
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
@@ -77,15 +79,17 @@ def download_clip_range_only(url: str, start_time: float, end_time: float, outpu
             pass
 
     ydl_opts = {
-        "format": "bestvideo+bestaudio/best",
+        "format": "best[ext=mp4]/best",
         "outtmpl": output_path,
         "overwrites": True,
-        "js_runtimes": {"node": {}},
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android_music", "web_embedded"]
+            }
+        },
         "download_ranges": yt_dlp.utils.download_range_func(None, [(start_time, end_time)]),
         "force_keyframes_at_cuts": True,
     }
-    if os.path.exists(COOKIE_FILE):
-        ydl_opts["cookiefile"] = COOKIE_FILE
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
