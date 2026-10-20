@@ -8,8 +8,10 @@ from video_utils import (
     fetch_fast_transcript,
     download_clip_range_only,
     process_short_video,
-    add_karaoke_captions_to_video
-)st.set_page_config(page_title="AI Shorts Generator", layout="centered", page_icon="⚡")
+    add_karaoke_captions_to_video,
+)
+
+st.set_page_config(page_title="AI Shorts Generator", layout="centered", page_icon="⚡")
 
 st.title("⚡ صانع الشورتس الذكي بالذكاء الاصطناعي")
 st.write("ضع رابط أي مقطع يوتيوب، وسيقوم النظام فوراً بتحليل المحتوى واختيار أفضل لقطة وإنتاج شورت عمودي مع كابشنز كاريوكي.")
